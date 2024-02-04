@@ -17,7 +17,7 @@ root_access() {
     fi
 }
 
-check_dependencies() {
+check_dependencies_reverse() {
     detect_distribution
 
     local dependencies=("wget" "lsof" "iptables" "unzip" "gcc" "git" "curl" "tar")
@@ -68,9 +68,9 @@ install_rtt() {
 
 
     case $(uname -m) in
-        x86_64)  URL="https://github.com/NotMRGH/ReverseTlsTunnel/releases/latest/download/linux_amd64.zip" ;;
-        arm)     URL="https://github.com/NotMRGH/ReverseTlsTunnel/releases/latest/download/linux_arm64.zip" ;;
-        aarch64) URL="https://github.com/NotMRGH/ReverseTlsTunnel/releases/latest/download/linux_arm64.zip" ;;
+        x86_64)  URL="https://github.com/NotMRGH/MRTunnel/releases/latest/download/linux_Reverse_amd64.zip" ;;
+        arm)     URL="https://github.com/NotMRGH/MRTunnel/releases/latest/download/linux_Reverse_arm64.zip" ;;
+        aarch64) URL="https://github.com/NotMRGH/MRTunnel/releases/latest/download/linux_Reverse_arm64.zip" ;;
     
         *)   echo "Unable to determine system architecture."; exit 1 ;;
 
@@ -87,58 +87,70 @@ install_rtt() {
 }
 
 
-install() {
+install_reverse() {
     root_access
-    check_dependencies
+    check_dependencies_reverse
     install_rtt
     cd /etc/systemd/system
 
-    read -p "Which server do you want to use? (Enter '1' for Iran(internal-server) or '2' for Kharej(external-server) or '3' custom RTT ) : " server_choice
+    read -p "Which server do you want to use? (Enter '1' for Iran(internal-server) or '2' for Kharej(external-server): " server_choice
     if [ "$server_choice" == "2" ]; then
         read -p "Please Enter IP(IRAN) : " server_ip
-        
-        if [ -f "/etc/systemd/system/Tunnel_$server_ip.service" ]; then
+        read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
+
+        if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
             echo "This Tunnel is already installed."
             exit 1
         fi
 
         read -p "Please Enter SNI (default : sheypoor.com): " sni
         sni=${sni:-sheypoor.com}
+
         read -p "Please Enter Password (Please choose the same password on both servers): " password
 
-        read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
         arguments="--kharej --iran-ip:$server_ip --iran-port:$server_port --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --keep-ufw --mux-width:2 --terminate:24"
     elif [ "$server_choice" == "1" ]; then
-        read -p "Please Enter IP(Kharej) : " server_ip
-
-        if [ -f "/etc/systemd/system/Tunnel_$server_ip.service" ]; then
-            echo "This Tunnel is already installed."
-            exit 1
-        fi
-
         read -p "Please Enter SNI (default : sheypoor.com): " sni
         sni=${sni:-sheypoor.com}
+
         read -p "Please Enter Password (Please choose the same password on both servers): " password
 
-        arguments="--iran --lport:23-65535 --sni:$sni --password:$password --keep-ufw --mux-width:2 --terminate:24"
-    elif [ "$server_choice" == "3" ]; then
+        read -p "Which method do you want to use? (Enter '1' for multi-port or '2' for one-port: " method_choice
 
-        read -p "Please Enter IP(Kharej or IRAN) : " server_ip
+        if [ "$method_choice" == "1" ]; then
+            $server_ip = $myip
+            $server_port = "multi-port"
 
-        if [ -f "/etc/systemd/system/Tunnel_$server_ip.service" ]; then
-            echo "This Tunnel is already installed."
+            if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
+                echo "This Tunnel is already installed. (If you want to connect this server to 2 or more servers, they must all be installed as one-port)"
+                exit 1
+            fi
+
+            arguments="--iran --lport:23-65535 --sni:$sni --password:$password --keep-ufw --mux-width:2 --terminate:24"
+
+        elif [ "$method_choice" == "2" ]; then
+            read -p "Please Enter IP(Kharej) : " server_ip
+            read -p "Please Enter Port(for connection between IRAN and Kharej (config port)) : " server_port
+
+            if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
+                echo "This Tunnel is already installed."
+                exit 1
+            fi
+
+            arguments="--iran --lport:$server_port --sni:$sni --password:$password --keep-ufw --mux-width:2 --terminate:24"
+        
+        else
+            echo "Invalid choice. Please enter '1' or '2'."
             exit 1
         fi
-
-        read -p "Enter RTT arguments (Example: --iran --lport:443 --sni:splus.ir --password:123): " arguments
     else
-        echo "Invalid choice. Please enter '1' or '2' or '3'."
+        echo "Invalid choice. Please enter '1' or '2'."
         exit 1
     fi
 
-    cat <<EOL > Tunnel_$server_ip.service
+    cat <<EOL > Tunnel-reverse-$server_ip-$server_port
 [Unit]
-Description=Tunnel_$server_ip
+Description=Tunnel-reverse-$server_ip-$server_port
 
 [Service]
 Type=idle
@@ -152,23 +164,25 @@ WantedBy=multi-user.target
 EOL
 
     sudo systemctl daemon-reload
-    sudo systemctl start Tunnel_$server_ip.service
-    sudo systemctl enable Tunnel_$server_ip.service
-    echo "This Tunnel with name (Tunnel_$server_ip) was successfully installed"
+    sudo systemctl start Tunnel-reverse-$server_ip-$server_port.service
+    sudo systemctl enable Tunnel-reverse-$server_ip-$server_port.service
+    echo "This Tunnel with name (Tunnel-reverse-$server_ip-$server_port) was successfully installed"
 }
 
 
-uninstall() {
+uninstall_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
-    if [ ! -f "/etc/systemd/system/Tunnel_$server_ip.service" ]; then
+    read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
+
+    if [ ! -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
         echo "This Tunnel is not installed."
         return
     fi
 
-    sudo systemctl stop Tunnel_$server_ip.service
-    sudo systemctl disable Tunnel_$server_ip.service
+    sudo systemctl stop Tunnel-reverse-$server_ip-$server_port.service
+    sudo systemctl disable Tunnel-reverse-$server_ip-$server_port.service
 
-    sudo rm /etc/systemd/system/Tunnel_$server_ip.service
+    sudo rm /etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service
     sudo systemctl reset-failed
     sudo rm RTT
     sudo rm install.sh 2>/dev/null
@@ -176,13 +190,14 @@ uninstall() {
     echo "Uninstallation completed successfully."
 }
 
-start_tunnel() {
+start_tunnel_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
+    read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
-    if sudo systemctl is-enabled --quiet Tunnel_$server_ip.service; then
-        sudo systemctl start Tunnel_$server_ip.service > /dev/null 2>&1
+    if sudo systemctl is-enabled --quiet Tunnel-reverse-$server_ip-$server_port.service; then
+        sudo systemctl start Tunnel-reverse-$server_ip-$server_port.service > /dev/null 2>&1
 
-        if sudo systemctl is-active --quiet Tunnel_$server_ip.service; then
+        if sudo systemctl is-active --quiet Tunnel-reverse-$server_ip-$server_port.service; then
             echo "Tunnel service started."
         else
             echo "Tunnel service failed to start."
@@ -192,13 +207,14 @@ start_tunnel() {
     fi
 }
 
-stop_tunnel() {
+stop_tunnel_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
+    read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
-    if sudo systemctl is-enabled --quiet Tunnel_$server_ip.service; then
-        sudo systemctl stop Tunnel_$server_ip.service > /dev/null 2>&1
+    if sudo systemctl is-enabled --quiet Tunnel-reverse-$server_ip-$server_port.service; then
+        sudo systemctl stop Tunnel-reverse-$server_ip-$server_port.service > /dev/null 2>&1
 
-        if sudo systemctl is-active --quiet Tunnel_$server_ip.service; then
+        if sudo systemctl is-active --quiet Tunnel-reverse-$server_ip-$server_port.service; then
             echo "Tunnel service failed to stop."
         else
             echo "Tunnel service stopped."
@@ -208,45 +224,72 @@ stop_tunnel() {
     fi
 }
 
-check_tunnel_status() {
+check_tunnel_status_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
+    read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
-    if sudo systemctl is-active --quiet Tunnel_$server_ip.service; then
+    if sudo systemctl is-active --quiet Tunnel-reverse-$server_ip-$server_port.service; then
         echo -e "${yellow}Tunnel is: ${green}[running ✔]${rest}"
     else
         echo -e "${yellow}Tunnel is:${red}[Not running ✗ ]${rest}"
     fi
 }
 
+uninstall_reverse_multiport() {
+    if [ ! -f "/etc/systemd/system/Tunnel-reverse-$myip-multi-port.service" ]; then
+        echo "IRAN Multiport tunnel is not installed."
+        return
+    fi
+
+    sudo systemctl stop Tunnel-reverse-$myip-multi-port.service
+    sudo systemctl disable Tunnel-reverse-$myip-multi-port.service
+
+    sudo rm /etc/systemd/system/Tunnel-reverse-$myip-multi-port.service
+    sudo systemctl reset-failed
+    sudo rm RTT
+    sudo rm install.sh 2>/dev/null
+
+    echo "Uninstallation completed successfully."
+}
+
 # Main menu
 clear
 echo -e "${cyan}By --> NotMR_GH * Github.com/NotMRGH * ${rest}"
 echo -e "Your IP is: ${cyan}($myip)${rest} "
+if sudo systemctl is-active --quiet Tunnel-reverse-$myip-multi-port.service; then
+    echo -e "${yellow}IRAN Multiport is: ${green}[running ✔]${rest}"
+else
+    echo -e "${yellow}IRAN Multiport is:${red}[Not running ✗ ]${rest}"
+fi
 echo -e "${yellow}******************************${rest}"
 echo -e " ${purple}--------#- Reverse Tls Tunnel -#--------${rest}"
 echo -e "${green}1) Install${rest}"
-echo -e "${red}2) Uninstall${rest}"
-echo "3) Start"
-echo "4) Stop"
-echo "5) Check Status"
-echo "0) Exit"
+echo -e "${red}2) Uninstall multiport${rest}"
+echo -e "${red}3) Uninstall${rest}"
+echo -e "${green}4) Start${rest}"
+echo -e "${red}5) Stop${rest}"
+echo -e "${yellow}6) Check Status${rest}"
+echo -e "${red}0) Exit${rest}"
 read -p "Please choose: " choice
 
 case $choice in
     1)
-        install
+        install_reverse
         ;;
     2)
-        uninstall
+        uninstall_reverse_multiport
         ;;
     3)
-        start_tunnel
+        uninstall_reverse
         ;;
     4)
-        stop_tunnel
+        start_tunnel_reverse
         ;;
     5)
-        check_tunnel_status
+        stop_tunnel_reverse
+        ;;
+    6)
+        check_tunnel_status_reverse
         ;;
     0)   
         exit
