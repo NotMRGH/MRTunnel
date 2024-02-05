@@ -253,6 +253,9 @@ uninstall_reverse_multiport() {
 }
 
 install_gost() {
+    echo $'\e[32mUpdating system packages, please wait...\e[0m'
+    apt update
+    echo $'\e[32mSystem update completed.\e[0m'
     options=($'\e[36m1. \e[0mGost Tunnel By IP4'
         $'\e[36m2. \e[0mGost Tunnel By IP6')
 
@@ -304,9 +307,9 @@ install_gost() {
 
         sudo apt install wget nano -y &&
             echo $'\e[32mInstalling Gost version 3.0.0, please wait...\e[0m' &&
-            wget https://github.com/NotMRGH/MRTunnel/releases/latest/download/linux_Gost_arm64.tar.gz &&
+            wget https://github.com/NotMRGH/MRTunnel/releases/latest/download/linux_Gost_amd64.tar.gz &&
             echo $'\e[32mGost downloaded successfully.\e[0m' &&
-            tar -xvzf linux_Gost_arm64.tar.gz -C /usr/local/bin/ &&
+            tar -xvzf linux_Gost_amd64.tar.gz -C /usr/local/bin/ &&
             cd /usr/local/bin/ &&
             chmod +x gost &&
             echo $'\e[32mGost installed successfully.\e[0m'
