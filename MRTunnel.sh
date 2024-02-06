@@ -311,7 +311,7 @@ install_gost() {
             cd /usr/local/bin/ &&
             chmod +x gost &&
             rm linux_Gost_amd64.tar.gz
-            echo $'\e[32mGost installed successfully.\e[0m'
+        echo $'\e[32mGost installed successfully.\e[0m'
 
         cat <<EOL | sudo tee /usr/lib/systemd/system/gost.service >/dev/null
 [Unit]
@@ -388,11 +388,7 @@ EOL
     fi
 }
 uninstall_gost() {
-    if sudo systemctl is-enabled --quiet gost.service; then
-        echo $'\e[32mUninstalling Gost in 3 seconds... \e[0m' && sleep 1 && echo $'\e[32m2... \e[0m' && sleep 1 && echo $'\e[32m1... \e[0m' && sleep 1 && { sudo rm -f /usr/local/bin/gost && sudo rm -f /usr/lib/systemd/system/gost.service && echo $'\e[32mGost successfully uninstalled.\e[0m'; }
-    else
-        echo "Tunnel is not installed."
-    fi
+    echo $'\e[32mUninstalling Gost in 3 seconds... \e[0m' && sleep 1 && echo $'\e[32m2... \e[0m' && sleep 1 && echo $'\e[32m1... \e[0m' && sleep 1 && { sudo rm -f /usr/local/bin/gost && sudo rm -f /usr/lib/systemd/system/gost.service && echo $'\e[32mGost successfully uninstalled.\e[0m'; }
 }
 
 # Main menu
