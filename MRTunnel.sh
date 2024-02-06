@@ -99,7 +99,7 @@ install_reverse() {
         read -p "Please Enter IP(IRAN) : " server_ip
         read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
-        if [ -f "/etc/systemd/system/Tunnel_reverse_$server_ip.$server_port.service" ]; then
+        if [ -f "/etc/systemd/system/Tunnel_reverse_$server_ip.service" ]; then
             echo "This Tunnel is already installed."
             exit 1
         fi
@@ -122,7 +122,7 @@ install_reverse() {
             server_ip=$myip
             server_port="multi-port"
 
-            if [ -f "/etc/systemd/system/Tunnel_reverse_$server_ip.$server_port.service" ]; then
+            if [ -f "/etc/systemd/system/Tunnel_reverse_$server_ip.service" ]; then
                 echo "This Tunnel is already installed. (If you want to connect this server to 2 or more servers, they must all be installed as one-port)"
                 exit 1
             fi
@@ -149,9 +149,9 @@ install_reverse() {
         exit 1
     fi
 
-    cat <<EOL >Tunnel_reverse_$server_ip.$server_port
+    cat <<EOL >Tunnel_reverse_$server_ip
 [Unit]
-Description=Tunnel_reverse_$server_ip.$server_port
+Description=Tunnel_reverse_$server_ip
 
 [Service]
 Type=idle
@@ -165,9 +165,9 @@ WantedBy=multi-user.target
 EOL
 
     sudo systemctl daemon-reload
-    sudo systemctl start Tunnel_reverse_$server_ip.$server_port.service
-    sudo systemctl enable Tunnel_reverse_$server_ip.$server_port.service
-    echo "This Tunnel with name (Tunnel_reverse_$server_ip.$server_port) was successfully installed"
+    sudo systemctl start Tunnel_reverse_$server_ip.service
+    sudo systemctl enable Tunnel_reverse_$server_ip.service
+    echo "This Tunnel with name (Tunnel_reverse_$server_ip) was successfully installed"
 }
 
 uninstall_reverse() {
