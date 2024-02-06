@@ -99,7 +99,7 @@ install_reverse() {
         read -p "Please Enter IP(IRAN) : " server_ip
         read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
-        if [ -f "/etc/systemd/system/Tunnel_reverse_$server_ip.service" ]; then
+        if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
             echo "This Tunnel is already installed."
             exit 1
         fi
@@ -122,7 +122,7 @@ install_reverse() {
             server_ip=$myip
             server_port="multi-port"
 
-            if [ -f "/etc/systemd/system/Tunnel_reverse_$server_ip.service" ]; then
+            if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
                 echo "This Tunnel is already installed. (If you want to connect this server to 2 or more servers, they must all be installed as one-port)"
                 exit 1
             fi
@@ -133,7 +133,7 @@ install_reverse() {
             read -p "Please Enter IP(Kharej) : " server_ip
             read -p "Please Enter Port(for connection between IRAN and Kharej (config port)) : " server_port
 
-            if [ -f "/etc/systemd/system/Tunnel_reverse_$server_ip.$server_port.service" ]; then
+            if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
                 echo "This Tunnel is already installed."
                 exit 1
             fi
@@ -149,9 +149,9 @@ install_reverse() {
         exit 1
     fi
 
-    cat <<EOL >Tunnel_reverse_$server_ip
+    cat <<EOL >Tunnel-reverse-$server_ip-$server_port.service
 [Unit]
-Description=Tunnel_reverse_$server_ip
+Description=Tunnel-reverse-$server_ip-$server_port
 
 [Service]
 Type=idle
@@ -165,24 +165,24 @@ WantedBy=multi-user.target
 EOL
 
     sudo systemctl daemon-reload
-    sudo systemctl start Tunnel_reverse_$server_ip.service
-    sudo systemctl enable Tunnel_reverse_$server_ip.service
-    echo "This Tunnel with name (Tunnel_reverse_$server_ip) was successfully installed"
+    sudo systemctl start Tunnel-reverse-$server_ip-$server_port.service
+    sudo systemctl enable Tunnel-reverse-$server_ip-$server_port.service
+    echo "This Tunnel with name (Tunnel-reverse-$server_ip-$server_port) was successfully installed"
 }
 
 uninstall_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
     read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
-    if [ ! -f "/etc/systemd/system/Tunnel_reverse_$server_ip.$server_port.service" ]; then
+    if [ ! -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
         echo "This Tunnel is not installed."
         return
     fi
 
-    sudo systemctl stop Tunnel_reverse_$server_ip.$server_port.service
-    sudo systemctl disable Tunnel_reverse_$server_ip.$server_port.service
+    sudo systemctl stop Tunnel-reverse-$server_ip-$server_port.service
+    sudo systemctl disable Tunnel-reverse-$server_ip-$server_port.service
 
-    sudo rm /etc/systemd/system/Tunnel_reverse_$server_ip.$server_port.service
+    sudo rm /etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service
     sudo systemctl reset-failed
     sudo rm RTT
     sudo rm install.sh 2>/dev/null
@@ -194,10 +194,10 @@ start_tunnel_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
     read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
-    if sudo systemctl is-enabled --quiet Tunnel_reverse_$server_ip.$server_port.service; then
-        sudo systemctl start Tunnel_reverse_$server_ip.$server_port.service >/dev/null 2>&1
+    if sudo systemctl is-enabled --quiet Tunnel-reverse-$server_ip-$server_port.service; then
+        sudo systemctl start Tunnel-reverse-$server_ip-$server_port.service >/dev/null 2>&1
 
-        if sudo systemctl is-active --quiet Tunnel_reverse_$server_ip.$server_port.service; then
+        if sudo systemctl is-active --quiet Tunnel-reverse-$server_ip-$server_port.service; then
             echo "Tunnel service started."
         else
             echo "Tunnel service failed to start."
@@ -211,10 +211,10 @@ stop_tunnel_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
     read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
-    if sudo systemctl is-enabled --quiet Tunnel_reverse_$server_ip.$server_port.service; then
-        sudo systemctl stop Tunnel_reverse_$server_ip.$server_port.service >/dev/null 2>&1
+    if sudo systemctl is-enabled --quiet Tunnel-reverse-$server_ip-$server_port.service; then
+        sudo systemctl stop Tunnel-reverse-$server_ip-$server_port.service >/dev/null 2>&1
 
-        if sudo systemctl is-active --quiet Tunnel_reverse_$server_ip.$server_port.service; then
+        if sudo systemctl is-active --quiet Tunnel-reverse-$server_ip-$server_port.service; then
             echo "Tunnel service failed to stop."
         else
             echo "Tunnel service stopped."
@@ -228,7 +228,7 @@ check_tunnel_status_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
     read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
-    if sudo systemctl is-active --quiet Tunnel_reverse_$server_ip.$server_port.service; then
+    if sudo systemctl is-active --quiet Tunnel-reverse-$server_ip-$server_port.service; then
         echo -e "${yellow}Tunnel is: ${green}[running ✔]${rest}"
     else
         echo -e "${yellow}Tunnel is:${red}[Not running ✗ ]${rest}"
@@ -236,15 +236,15 @@ check_tunnel_status_reverse() {
 }
 
 uninstall_reverse_multiport() {
-    if [ ! -f "/etc/systemd/system/Tunnel_reverse_$myip.multi_port.service" ]; then
+    if [ ! -f "/etc/systemd/system/Tunnel-reverse-$myip-multi-port.service" ]; then
         echo "IRAN Multiport tunnel is not installed."
         return
     fi
 
-    sudo systemctl stop Tunnel_reverse_$myip.multi_port.service
-    sudo systemctl disable Tunnel_reverse_$myip.multi_port.service
+    sudo systemctl stop Tunnel-reverse-$myip-multi-port.service
+    sudo systemctl disable Tunnel-reverse-$myip-multi-port.service
 
-    sudo rm /etc/systemd/system/Tunnel_reverse_$myip.multi_port.service
+    sudo rm /etc/systemd/system/Tunnel-reverse-$myip-multi-port.service
     sudo systemctl reset-failed
     sudo rm RTT
     sudo rm install.sh 2>/dev/null
@@ -395,7 +395,7 @@ uninstall_gost() {
 clear
 echo -e "${cyan}By --> NotMR_GH * Github.com/NotMRGH * ${rest}"
 echo -e "Your IP is: ${cyan}($myip)${rest} "
-if sudo systemctl is-active --quiet Tunnel_reverse_$myip.multi_port.service; then
+if sudo systemctl is-active --quiet Tunnel-reverse-$myip-multi-port.service; then
     echo -e "${yellow}IRAN Multiport is: ${green}[running ✔]${rest}"
 else
     echo -e "${yellow}IRAN Multiport is:${red}[Not running ✗ ]${rest}"
