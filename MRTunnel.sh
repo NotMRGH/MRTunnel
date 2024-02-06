@@ -119,8 +119,8 @@ install_reverse() {
         read -p "Which method do you want to use? (Enter '1' for multi-port or '2' for one-port: " method_choice
 
         if [ "$method_choice" == "1" ]; then
-            $server_ip = $myip
-            $server_port = "multi-port"
+            server_ip = $myip
+            server_port = "multi-port"
 
             if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
                 echo "This Tunnel is already installed. (If you want to connect this server to 2 or more servers, they must all be installed as one-port)"
