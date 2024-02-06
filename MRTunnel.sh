@@ -391,7 +391,6 @@ uninstall_gost() {
     echo $'\e[32mUninstalling Gost in 3 seconds... \e[0m' && sleep 1 && echo $'\e[32m2... \e[0m' && sleep 1 && echo $'\e[32m1... \e[0m' && sleep 1 && { sudo rm -f /usr/local/bin/gost && sudo rm -f /usr/lib/systemd/system/gost.service && echo $'\e[32mGost successfully uninstalled.\e[0m'; }
 }
 
-# Main menu
 clear
 echo -e "${cyan}By --> NotMR_GH * Github.com/NotMRGH * ${rest}"
 echo -e "Your IP is: ${cyan}($myip)${rest} "
