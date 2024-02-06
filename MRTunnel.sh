@@ -259,11 +259,9 @@ install_gost() {
     options=($'\e[36m1. \e[0mGost Tunnel By IP4'
         $'\e[36m2. \e[0mGost Tunnel By IP6')
 
-    # Print prompt and options with cyan color
     printf "\e[32mPlease Choice Your Options:\e[0m\n"
     printf "%s\n" "${options[@]}"
 
-    # Read user input with white color
     read -p $'\e[97mYour choice: \e[0m' choice
 
     if [ "$choice" -eq 1 ] || [ "$choice" -eq 2 ]; then
@@ -312,9 +310,9 @@ install_gost() {
             tar -xvzf linux_Gost_amd64.tar.gz -C /usr/local/bin/ &&
             cd /usr/local/bin/ &&
             chmod +x gost &&
+            rm linux_Gost_amd64.tar.gz
             echo $'\e[32mGost installed successfully.\e[0m'
 
-        # Create systemd service file without displaying content
         cat <<EOL | sudo tee /usr/lib/systemd/system/gost.service >/dev/null
 [Unit]
 Description=GO Simple Tunnel
@@ -325,16 +323,13 @@ Wants=network.target
 Type=simple
 EOL
 
-        # Variable to store the ExecStart command
         exec_start_command="ExecStart=/usr/local/bin/gost"
 
-        # Add lines for each port
         IFS=',' read -ra port_array <<<"$ports"
         for port in "${port_array[@]}"; do
             exec_start_command+=" -L=$protocol://:$port/[$destination_ip]:$port"
         done
 
-        # Add the loop for adding additional IPs
         while true; do
             read -p $'\e[36mDo you want to add another destination IP? (y/n): \e[0m' add_another_ip
             if [ "$add_another_ip" == "n" ]; then
@@ -342,7 +337,6 @@ EOL
             elif [ "$add_another_ip" == "y" ]; then
                 read -p $'\e[97mPlease enter the new destination (Kharej) IP: \e[0m' new_destination_ip
 
-                # Use the same protocol as the first choice by default
                 new_protocol=$protocol
 
                 read -p $'\e[32mPlease choose one of the options below:\n\e[0m\e[32m1. \e[0mEnter Manually Ports\n\e[32m2. \e[0mEnter Range Ports\e[32m\nYour choice: \e[0m' new_port_option
@@ -365,7 +359,6 @@ EOL
                 echo $'\e[97mNew Ports:\e[0m' $new_ports
                 echo $'\e[97mNew Protocol:\e[0m' $new_protocol
 
-                # Add lines for each port of the new destination IPs
                 IFS=',' read -ra new_port_array <<<"$new_ports"
                 for new_port in "${new_port_array[@]}"; do
                     exec_start_command+=" -L=$new_protocol://:$new_port/[$new_destination_ip]:$new_port"
@@ -376,7 +369,6 @@ EOL
             fi
         done
 
-        # Continue creating the systemd service file
         echo "$exec_start_command" | sudo tee -a /usr/lib/systemd/system/gost.service >/dev/null
 
         cat <<EOL | sudo tee -a /usr/lib/systemd/system/gost.service >/dev/null
@@ -396,7 +388,11 @@ EOL
     fi
 }
 uninstall_gost() {
-    echo $'\e[32mUninstalling Gost in 3 seconds... \e[0m' && sleep 1 && echo $'\e[32m2... \e[0m' && sleep 1 && echo $'\e[32m1... \e[0m' && sleep 1 && { sudo rm -f /usr/local/bin/gost && sudo rm -f /usr/lib/systemd/system/gost.service && echo $'\e[32mGost successfully uninstalled.\e[0m'; }
+    if sudo systemctl is-enabled --quiet gost.service; then
+        echo $'\e[32mUninstalling Gost in 3 seconds... \e[0m' && sleep 1 && echo $'\e[32m2... \e[0m' && sleep 1 && echo $'\e[32m1... \e[0m' && sleep 1 && { sudo rm -f /usr/local/bin/gost && sudo rm -f /usr/lib/systemd/system/gost.service && echo $'\e[32mGost successfully uninstalled.\e[0m'; }
+    else
+        echo "Tunnel is not installed."
+    fi
 }
 
 # Main menu
