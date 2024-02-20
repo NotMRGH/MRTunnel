@@ -253,67 +253,79 @@ uninstall_reverse_multiport() {
 }
 
 install_gost() {
+    root_access
     echo $'\e[32mUpdating system packages, please wait...\e[0m'
+    sysctl net.ipv4.ip_local_port_range="1024 65535"
     apt update
     echo $'\e[32mSystem update completed.\e[0m'
+
     options=($'\e[36m1. \e[0mGost Tunnel By IP4'
         $'\e[36m2. \e[0mGost Tunnel By IP6')
 
     printf "\e[32mPlease Choice Your Options:\e[0m\n"
     printf "%s\n" "${options[@]}"
-
     read -p $'\e[97mYour choice: \e[0m' choice
 
-    if [ "$choice" -eq 1 ] || [ "$choice" -eq 2 ]; then
-        if [ "$choice" -eq 1 ]; then
-            read -p $'\e[97mPlease enter the destination (Kharej) IP: \e[0m' destination_ip
-        elif [ "$choice" -eq 2 ]; then
-            read -p $'\e[97mPlease enter the destination (Kharej) IPv6: \e[0m' destination_ip
-        fi
+    if [ "$choice" -eq 1 ]; then
+        read -p $'\e[97mPlease enter the destination (Kharej) IP: \e[0m' destination_ip
+    elif [ "$choice" -eq 2 ]; then
+        read -p $'\e[97mPlease enter the destination (Kharej) IPv6: \e[0m' destination_ip
+    fi
 
-        read -p $'\e[32mPlease choose one of the options below:\n\e[0m\e[32m1. \e[0mEnter Manually Ports\n\e[32m2. \e[0mEnter Range Ports\e[32m\nYour choice: \e[0m' port_option
+    read -p $'\e[32mPlease choose one of the options below:\n\e[0m\e[36m1. \e[0mEnter Manually Ports\n\e[36m2. \e[0mEnter Range Ports\e[32m\nYour choice: \e[0m' port_option
 
-        if [ "$port_option" -eq 1 ]; then
-            read -p $'\e[97mPlease enter the desired ports (separated by commas): \e[0m' ports
-        elif [ "$port_option" -eq 2 ]; then
-            read -p $'\e[97mPlease enter the port range (e.g., 1,65535): \e[0m' port_range
+    if [ "$port_option" -eq 1 ]; then
+        read -p $'\e[36mPlease enter the desired ports (separated by commas): \e[0m' ports
+    elif [ "$port_option" -eq 2 ]; then
+        read -p $'\e[36mPlease enter the port range (e.g., 54,65000): \e[0m' port_range
 
-            IFS=',' read -ra port_array <<<"$port_range"
+        IFS=',' read -ra port_array <<<"$port_range"
 
-            ports=$(seq -s, "${port_array[0]}" "${port_array[1]}")
-
-        else
-            echo $'\e[31mInvalid option. Exiting...\e[0m'
+        if [ "${port_array[0]}" -lt 54 -o "${port_array[1]}" -gt 65000 ]; then
+            echo $'\e[33mInvalid port range. Please enter a valid range starting from 54 and up to 65000.\e[0m'
             exit
         fi
 
-        read -p $'\e[32mSelect the protocol:\n\e[0m\e[32m1. \e[0mBy Tcp Protocol \n\e[32m2. \e[0mBy Grpc Protocol \e[32m\nYour choice: \e[0m' protocol_option
+        ports=$(seq -s, "${port_array[0]}" "${port_array[1]}")
+    else
+        echo $'\e[31mInvalid option. Exiting...\e[0m'
+        exit
+    fi
 
-        if [ "$protocol_option" -eq 1 ]; then
-            protocol="tcp"
-        elif [ "$protocol_option" -eq 2 ]; then
-            protocol="grpc"
-        else
-            echo $'\e[31mInvalid protocol option. Exiting...\e[0m'
-            exit
-        fi
+    read -p $'\e[32mSelect the protocol:\n\e[0m\e[36m1. \e[0mBy Tcp Protocol \n\e[36m2. \e[0mBy Grpc Protocol \e[32m\nYour choice: \e[0m' protocol_option
 
-        echo $'\e[32mYou chose option\e[0m' $choice
-        echo $'\e[97mDestination IP:\e[0m' $destination_ip
-        echo $'\e[97mPorts:\e[0m' $ports
-        echo $'\e[97mProtocol:\e[0m' $protocol
+    if [ "$protocol_option" -eq 1 ]; then
+        protocol="tcp"
+    elif [ "$protocol_option" -eq 2 ]; then
+        protocol="grpc"
+    else
+        echo $'\e[31mInvalid protocol option. Exiting...\e[0m'
+        exit
+    fi
 
-        sudo apt install wget nano -y &&
-            echo $'\e[32mInstalling Gost version 3.0.0, please wait...\e[0m' &&
-            wget https://github.com/NotMRGH/MRTunnel/releases/latest/download/linux_Gost_amd64.tar.gz &&
-            echo $'\e[32mGost downloaded successfully.\e[0m' &&
-            tar -xvzf linux_Gost_amd64.tar.gz -C /usr/local/bin/ &&
-            cd /usr/local/bin/ &&
-            chmod +x gost &&
-            rm linux_Gost_amd64.tar.gz
-        echo $'\e[32mGost installed successfully.\e[0m'
+    echo $'\e[32mYou chose option\e[0m' $choice
+    echo $'\e[97mDestination IP:\e[0m' $destination_ip
+    echo $'\e[97mPorts:\e[0m' $ports
+    echo $'\e[97mProtocol:\e[0m' $protocol
 
-        cat <<EOL | sudo tee /usr/lib/systemd/system/gost.service >/dev/null
+    sudo apt install wget nano -y &&
+        echo $'\e[32mInstalling Gost version 3.0.0, please wait...\e[0m'
+    wget -O /tmp/linux_Gost_amd64.tar.gz https://github.com/NotMRGH/MRTunnel/releases/latest/download/linux_Gost_amd64.tar.gz
+    tar -xvzf /tmp/linux_Gost_amd64.tar.gz -C /usr/local/bin/
+    chmod +x /usr/local/bin/gost
+    echo $'\e[32mGost installed successfully.\e[0m'
+
+    exec_start_command="ExecStart=/usr/local/bin/gost"
+
+    IFS=',' read -ra port_array <<<"$ports"
+    port_count=${#port_array[@]}
+
+    max_ports_per_file=12000
+
+    file_count=$(((port_count + max_ports_per_file - 1) / max_ports_per_file))
+
+    for ((file_index = 0; file_index < file_count; file_index++)); do
+        cat <<EOL | sudo tee "/usr/lib/systemd/system/gost_$file_index.service" >/dev/null
 [Unit]
 Description=GO Simple Tunnel
 After=network.target
@@ -324,71 +336,172 @@ Type=simple
 EOL
 
         exec_start_command="ExecStart=/usr/local/bin/gost"
-
-        IFS=',' read -ra port_array <<<"$ports"
-        for port in "${port_array[@]}"; do
+        for ((i = file_index * max_ports_per_file; i < (file_index + 1) * max_ports_per_file && i < port_count; i++)); do
+            port="${port_array[i]}"
             exec_start_command+=" -L=$protocol://:$port/[$destination_ip]:$port"
         done
 
-        while true; do
-            read -p $'\e[36mDo you want to add another destination IP? (y/n): \e[0m' add_another_ip
-            if [ "$add_another_ip" == "n" ]; then
-                break
-            elif [ "$add_another_ip" == "y" ]; then
-                read -p $'\e[97mPlease enter the new destination (Kharej) IP: \e[0m' new_destination_ip
+        echo "$exec_start_command" | sudo tee -a "/usr/lib/systemd/system/gost_$file_index.service" >/dev/null
 
-                new_protocol=$protocol
-
-                read -p $'\e[32mPlease choose one of the options below:\n\e[0m\e[32m1. \e[0mEnter Manually Ports\n\e[32m2. \e[0mEnter Range Ports\e[32m\nYour choice: \e[0m' new_port_option
-
-                if [ "$new_port_option" -eq 1 ]; then
-                    read -p $'\e[97mPlease enter the desired ports (separated by commas): \e[0m' new_ports
-                elif [ "$new_port_option" -eq 2 ]; then
-                    read -p $'\e[32mPlease enter the port range for the new destination (e.g., 1,65535): \e[0m' new_port_range
-
-                    IFS=',' read -ra new_port_array <<<"$new_port_range"
-
-                    new_ports=$(seq -s, "${new_port_array[0]}" "${new_port_array[1]}")
-
-                else
-                    echo $'\e[31mInvalid option. Exiting...\e[0m'
-                    exit
-                fi
-
-                echo $'\e[97mNew Destination IP:\e[0m' $new_destination_ip
-                echo $'\e[97mNew Ports:\e[0m' $new_ports
-                echo $'\e[97mNew Protocol:\e[0m' $new_protocol
-
-                IFS=',' read -ra new_port_array <<<"$new_ports"
-                for new_port in "${new_port_array[@]}"; do
-                    exec_start_command+=" -L=$new_protocol://:$new_port/[$new_destination_ip]:$new_port"
-                done
-            else
-                echo $'\e[31mInvalid option. Exiting...\e[0m'
-                exit
-            fi
-        done
-
-        echo "$exec_start_command" | sudo tee -a /usr/lib/systemd/system/gost.service >/dev/null
-
-        cat <<EOL | sudo tee -a /usr/lib/systemd/system/gost.service >/dev/null
+        cat <<EOL | sudo tee -a "/usr/lib/systemd/system/gost_$file_index.service" >/dev/null
 
 [Install]
 WantedBy=multi-user.target
 EOL
 
         sudo systemctl daemon-reload
-        sudo systemctl enable gost.service
-        sudo systemctl restart gost.service
-        echo $'\e[32mGost configuration applied successfully.\e[0m'
+        sudo systemctl enable "gost_$file_index.service"
+        sudo systemctl start "gost_$file_index.service"
+    done
 
+    echo $'\e[32mGost configuration applied successfully.\e[0m'
+}
+
+uninstall_gost() {
+    read -p $'\e[91mWarning\e[33m: This will uninstall Gost and remove all related data. Are you sure you want to continue? (y/n): ' uninstall_confirm
+
+    if [ "$uninstall_confirm" == "y" ]; then
+        echo $'\e[32mUninstalling Gost in 3 seconds... \e[0m' && sleep 1 && echo $'\e[32m2... \e[0m' && sleep 1 && echo $'\e[32m1... \e[0m' && sleep 1 && {
+            sudo rm -f /usr/bin/auto_restart_cronjob.sh
+
+            crontab -l | grep -v '/usr/bin/auto_restart_cronjob.sh' | crontab -
+
+            sudo systemctl daemon-reload
+            sudo systemctl stop gost_*.service
+            sudo rm -f /usr/local/bin/gost
+            sudo rm -rf /etc/gost
+            sudo rm -f /usr/lib/systemd/system/gost_*.service
+            sudo rm -f /etc/systemd/system/multi-user.target.wants/gost_*.service
+            echo $'\e[32mGost successfully uninstalled.\e[0m'
+        }
     else
-        echo "Invalid choice. Please enter '1' or '2'."
-        exit 1
+        echo $'\e[32mUninstallation canceled.\e[0m'
     fi
 }
-uninstall_gost() {
-    echo $'\e[32mUninstalling Gost in 3 seconds... \e[0m' && sleep 1 && echo $'\e[32m2... \e[0m' && sleep 1 && echo $'\e[32m1... \e[0m' && sleep 1 && { sudo rm -f /usr/local/bin/gost && sudo rm -f /usr/lib/systemd/system/gost.service && echo $'\e[32mGost successfully uninstalled.\e[0m'; }
+
+check_status_gost() {
+    if command -v gost &>/dev/null; then
+        echo $'\e[32mGost is installed. Checking configuration and status...\e[0m'
+
+        systemctl list-unit-files | grep -q "gost_"
+        if [ $? -eq 0 ]; then
+            echo $'\e[32mGost is configured and active.\e[0m'
+
+            for service_file in /usr/lib/systemd/system/gost_*.service; do
+                service_info=$(awk -F'[-=:/\\[\\]]+' '/ExecStart=/ {print $14,$15,$22,$20,$23}' "$service_file")
+
+                read -a info_array <<<"$service_info"
+
+                echo -e "\e[97mIP:\e[0m ${info_array[0]} \e[97mPort:\e[0m ${info_array[1]},... \e[97mProtocol:\e[0m ${info_array[2]}"
+
+            done
+        else
+            echo $'\e[33mGost is installed, but not configured or active.\e[0m'
+        fi
+    else
+        echo $'\e[33mGost Tunnel is not installed. \e[0m'
+    fi
+}
+add_new_ip_gost() {
+    read -p $'\e[97mPlease enter the new destination (Kharej) IP 4 or 6: \e[0m' destination_ip
+    read -p $'\e[36mPlease enter the new port (separated by commas): \e[0m' port
+    read -p $'\e[32mSelect the protocol:\n\e[0m\e[36m1. \e[0mBy Tcp Protocol \n\e[36m2. \e[0mBy Grpc Protocol \e[32m\nYour choice: \e[0m' protocol_option
+
+    if [ "$protocol_option" -eq 1 ]; then
+        protocol="tcp"
+    elif [ "$protocol_option" -eq 2 ]; then
+        protocol="grpc"
+    else
+        echo $'\e[31mInvalid protocol option. Exiting...\e[0m'
+        exit
+    fi
+
+    echo $'\e[32mYou chose option\e[0m' $choice
+    echo $'\e[97mDestination IP:\e[0m' $destination_ip
+    echo $'\e[97mPort(s):\e[0m' $port
+    echo $'\e[97mProtocol:\e[0m' $protocol
+
+    cat <<EOL | sudo tee "/usr/lib/systemd/system/gost_$destination_ip.service" >/dev/null
+[Unit]
+Description=GO Simple Tunnel
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+EOL
+
+    IFS=',' read -ra port_array <<<"$port"
+    port_count=${#port_array[@]}
+
+    max_ports_per_file=12000
+
+    file_count=$(((port_count + max_ports_per_file - 1) / max_ports_per_file))
+
+    for ((file_index = 0; file_index < file_count; file_index++)); do
+        exec_start_command="ExecStart=/usr/local/bin/gost"
+        for ((i = file_index * max_ports_per_file; i < (file_index + 1) * max_ports_per_file && i < port_count; i++)); do
+            port="${port_array[i]}"
+            exec_start_command+=" -L=$protocol://:$port/[$destination_ip]:$port"
+        done
+
+        echo "$exec_start_command" | sudo tee -a "/usr/lib/systemd/system/gost_$destination_ip.service" >/dev/null
+    done
+
+    cat <<EOL | sudo tee -a "/usr/lib/systemd/system/gost_$destination_ip.service" >/dev/null
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable "gost_$destination_ip.service"
+    sudo systemctl start "gost_$destination_ip.service"
+
+    echo $'\e[32mGost configuration applied successfully.\e[0m'
+    bash "$0"
+}
+
+auto_restart_gost() {
+    echo $'\e[32mChoose Auto Restart option:\e[0m'
+    echo $'\e[36m1. \e[0mEnable Auto Restart'
+    echo $'\e[36m2. \e[0mDisable Auto Restart'
+
+    read -p $'\e[97mYour choice: \e[0m' auto_restart_option
+
+    case "$auto_restart_option" in
+    1)
+        echo $'\e[32mAuto Restart Enabled.\e[0m'
+        sudo at -l | awk '{print $1}' | xargs -I {} atrm {}
+        read -p $'\e[97mEnter the restart time in hours: \e[0m' restart_time_hours
+
+        restart_time_minutes=$((restart_time_hours * 60))
+
+        echo -e "#!/bin/bash\n\nsudo systemctl daemon-reload\nsudo systemctl restart gost_*.service" | sudo tee /usr/bin/auto_restart_cronjob.sh >/dev/null
+
+        sudo chmod +x /usr/bin/auto_restart_cronjob.sh
+
+        crontab -l | grep -v '/usr/bin/auto_restart_cronjob.sh' | crontab -
+
+        (
+            crontab -l
+            echo "0 */$restart_time_hours * * * /usr/bin/auto_restart_cronjob.sh"
+        ) | crontab -
+
+        echo $'\e[32mAuto Restart scheduled successfully.\e[0m'
+        ;;
+    2)
+        echo $'\e[32mAuto Restart Disabled.\e[0m'
+        sudo rm -f /usr/bin/auto_restart_cronjob.sh
+        crontab -l | grep -v '/usr/bin/auto_restart_cronjob.sh' | crontab -
+
+        echo $'\e[32mAuto Restart disabled successfully.\e[0m'
+        ;;
+    *)
+        echo $'\e[31mInvalid choice. Exiting...\e[0m'
+        exit
+        ;;
+    esac
 }
 
 clear
@@ -410,6 +523,9 @@ echo -e "${yellow}6) Check Status${rest}"
 echo -e " ${purple}--------#- Gost Tunnel -#--------${rest}"
 echo -e "${green}7) Install${rest}"
 echo -e "${red}8) Uninstall${rest}"
+echo -e "${yellow}9) Check Status${rest}"
+echo -e "${green}10) Add New IP${rest}"
+echo -e "${yellow}11) Auto Restart Gost${rest}"
 echo -e "${red}0) Exit${rest}"
 read -p "Please choose: " choice
 
@@ -437,6 +553,15 @@ case $choice in
     ;;
 8)
     uninstall_gost
+    ;;
+9)
+    check_status_gost
+    ;;
+10)
+    add_new_ip_gost
+    ;;
+11)
+    auto_restart_gost
     ;;
 0)
     exit
