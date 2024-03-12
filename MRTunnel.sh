@@ -18,7 +18,6 @@ root_access() {
 }
 
 check_dependencies_reverse() {
-    detect_distribution
 
     local dependencies=("wget" "lsof" "iptables" "unzip" "gcc" "git" "curl" "tar")
 
@@ -32,8 +31,6 @@ check_dependencies_reverse() {
 
 install_rtt() {
     root_access
-
-    apt-get update -y
 
     REQUIRED_PKG="unzip"
     PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $REQUIRED_PKG | grep "install ok installed")
@@ -254,10 +251,7 @@ uninstall_reverse_multiport() {
 
 install_gost() {
     root_access
-    echo $'\e[32mUpdating system packages, please wait...\e[0m'
     sysctl net.ipv4.ip_local_port_range="1024 65535"
-    apt update
-    echo $'\e[32mSystem update completed.\e[0m'
 
     options=($'\e[36m1. \e[0mGost Tunnel By IP4'
         $'\e[36m2. \e[0mGost Tunnel By IP6')
