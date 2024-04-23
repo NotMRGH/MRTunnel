@@ -130,21 +130,25 @@ install_rtt() {
 }
 
 install_reverse() {
+
+    if [ -f /root/RTT ]; then
+        echo "Script is already installed"
+        exit 1
+    fi
+
     check_dependencies_reverse
     install_rtt
     enable_bbr
 
-    files=$(ls -1A /etc/systemd/system/Tunnel-reverse-* 2>/dev/null)
-
-    if [ ! -z "$files" ]; then
-        echo -e "${green}Tunnel is already installed! (Use add tunnel)${plain}"
-        exit 1
-    fi
-
-    add_reverse
+    echo -e "${green}Tunnel installed successfully${plain}${rest}"
 }
 
 add_reverse() {
+
+    if [ ! -f /root/RTT ]; then
+        echo "Script not installed"
+        exit 1
+    fi
 
     files=$(ls -1A /etc/systemd/system/Tunnel-reverse-* 2>/dev/null)
 
@@ -251,6 +255,12 @@ EOL
 }
 
 remove_reverse() {
+
+    if [ ! -f /root/RTT ]; then
+        echo "Script not installed"
+        exit 1
+    fi
+
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
     read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
@@ -293,7 +303,7 @@ uninstall_reverse() {
 
 start_tunnel_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
-    read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
+    read -p "Please Enter Port(for connection between IRAN and Kharej, if you are using multi-port write \"multi_port\") : " server_port
 
     if sudo systemctl is-enabled --quiet Tunnel-reverse-$server_ip-$server_port.service; then
         sudo systemctl start Tunnel-reverse-$server_ip-$server_port.service >/dev/null 2>&1
@@ -310,7 +320,7 @@ start_tunnel_reverse() {
 
 stop_tunnel_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
-    read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
+    read -p "Please Enter Port(for connection between IRAN and Kharej, if you are using multi-port write \"multi_port\") : " server_port
 
     if sudo systemctl is-enabled --quiet Tunnel-reverse-$server_ip-$server_port.service; then
         sudo systemctl stop Tunnel-reverse-$server_ip-$server_port.service >/dev/null 2>&1
