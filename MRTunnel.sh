@@ -31,7 +31,7 @@ enable_bbr() {
     echo -e "${green}instaling BBR${plain}"
 
     if grep -q "net.core.default_qdisc=fq" /etc/sysctl.conf && grep -q "net.ipv4.tcp_congestion_control=bbr" /etc/sysctl.conf; then
-        exit 1
+        exit 0
     fi
 
     case "${release}" in
