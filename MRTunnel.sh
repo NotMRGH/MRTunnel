@@ -326,14 +326,6 @@ stop_tunnel_reverse() {
 }
 
 check_tunnel_status_reverse() {
-    read -p "Please Enter IP(Kharej or IRAN) : " server_ip
-    read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
-
-    if sudo systemctl is-active --quiet Tunnel-reverse-$server_ip-$server_port.service; then
-        echo -e "${yellow}Tunnel is: ${green}[running ✔]${rest}"
-    else
-        echo -e "${yellow}Tunnel is:${red}[Not running ✗ ]${rest}"
-    fi
 
     files=$(ls -1A /etc/systemd/system/Tunnel-reverse-* 2>/dev/null)
 
