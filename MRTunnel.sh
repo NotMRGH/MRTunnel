@@ -515,12 +515,32 @@ check_status_gost() {
             echo $'\e[32mGost is configured and active.\e[0m'
 
             for service_file in /usr/lib/systemd/system/gost_*.service; do
-                service_info=$(awk -F'[-=:/\\[\\]]+' '/ExecStart=/ {print $14,$15,$22,$20,$23}' "$service_file")
 
-                read -a info_array <<<"$service_info"
+                a=$(awk '/\/usr\/local\/bin\/gost /{print}' "$service_file")
 
-                echo -e "\e[97mIP:\e[0m ${info_array[0]} \e[97mPort:\e[0m ${info_array[1]},... \e[97mProtocol:\e[0m ${info_array[2]}"
+                for s in $(echo $a | tr "=" "\n"); do
+                    if [[ $s == "/usr/local/bin/gost -L" ]]; then
+                        continue
+                    fi
 
+                    protocol=$(echo $s | cut -d ":" -f1)
+                    port=$(echo $s | cut -d ":" -f3 | cut -d "/" -f1)
+                    ip=$(echo $s | cut -d "[" -f2 | cut -d "]" -f1)
+
+                    if [[ $protocol == "-L" ]]; then
+                        continue
+                    fi
+
+                    if [[ $protocol == "/usr/local/bin/gost" ]]; then
+                        continue
+                    fi
+
+                    if [[ $protocol == "ExecStart" ]]; then
+                        continue
+                    fi
+
+                    echo -e "\e[97mIP:\e[0m ${ip} \e[97mPort:\e[0m ${port} \e[97mProtocol:\e[0m ${protocol}"
+                done
             done
         else
             echo $'\e[33mGost is installed, but not configured or active.\e[0m'
@@ -528,7 +548,14 @@ check_status_gost() {
     else
         echo $'\e[33mGost Tunnel is not installed. \e[0m'
     fi
+
+    read -n 1 -s -r -p $'\e[36m0. \e[0mBack to menu: \e[0m' choice
+
+    if [ "$choice" -eq 0 ]; then
+        bash "$0"
+    fi
 }
+
 add_new_ip_gost() {
     read -p $'\e[97mPlease enter the new destination (Kharej) IP 4 or 6: \e[0m' destination_ip
     read -p $'\e[36mPlease enter the new port (separated by commas): \e[0m' port
