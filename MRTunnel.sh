@@ -10,10 +10,58 @@ white='\033[0;37m'
 rest='\033[0m'
 myip=$(hostname -I | awk '{print $1}')
 
-root_access() {
-    if [ "$EUID" -ne 0 ]; then
-        echo "This script requires root access. please run as root."
+if [ "$EUID" -ne 0 ]; then
+    echo "This script requires root access. please run as root."
+    exit 1
+fi
+
+if [[ -f /etc/os-release ]]; then
+    source /etc/os-release
+    release=$ID
+elif [[ -f /usr/lib/os-release ]]; then
+    source /usr/lib/os-release
+    release=$ID
+else
+    echo "Failed to check the system OS, please contact the author!" >&2
+    exit 1
+fi
+
+enable_bbr() {
+
+    echo -e "${green}instaling BBR${plain}"
+
+    if grep -q "net.core.default_qdisc=fq" /etc/sysctl.conf && grep -q "net.ipv4.tcp_congestion_control=bbr" /etc/sysctl.conf; then
         exit 1
+    fi
+
+    case "${release}" in
+    ubuntu | debian | armbian)
+        apt-get update && apt-get install -yqq --no-install-recommends ca-certificates
+        ;;
+    centos | almalinux | rocky | oracle)
+        yum -y update && yum -y install ca-certificates
+        ;;
+    fedora)
+        dnf -y update && dnf -y install ca-certificates
+        ;;
+    arch | manjaro | parch)
+        pacman -Sy --noconfirm ca-certificates
+        ;;
+    *)
+        echo -e "${red}Unsupported operating system. Please check the script and install the necessary packages manually.${plain}\n"
+        exit 1
+        ;;
+    esac
+
+    echo "net.core.default_qdisc=fq" | tee -a /etc/sysctl.conf
+    echo "net.ipv4.tcp_congestion_control=bbr" | tee -a /etc/sysctl.conf
+
+    sysctl -p
+
+    if [[ $(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}') == "bbr" ]]; then
+        echo -e "${green}BBR has been enabled successfully.${plain}"
+    else
+        echo -e "${red}Failed to enable BBR. Please check your system configuration.${plain}"
     fi
 }
 
@@ -30,7 +78,6 @@ check_dependencies_reverse() {
 }
 
 install_rtt() {
-    root_access
 
     REQUIRED_PKG="unzip"
     PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $REQUIRED_PKG | grep "install ok installed")
@@ -86,38 +133,76 @@ install_rtt() {
 }
 
 install_reverse() {
-    root_access
     check_dependencies_reverse
     install_rtt
+
+    files=$(ls -1A /etc/systemd/system/Tunnel-reverse-* 2>/dev/null)
+
+    if [ ! -z "$files" ]; then
+        echo -e "${green}Tunnel is already installed! (Use add tunnel)${plain}"
+        exit 1
+    fi
+
+    add_reverse
+}
+
+add_reverse() {
+
+    files=$(ls -1A /etc/systemd/system/Tunnel-reverse-* 2>/dev/null)
+
+    if [ ! -z "$files" ]; then
+        for file in $files; do
+            port=$(echo $file | cut -d'-' -f4 | sed 's/\.service//')
+
+            if [ "$port" = "multi_port" ]; then
+                echo "Multi-Port are installed before use add tunnel uninstall multi-port."
+                exit 1
+            fi
+        done
+    fi
+
     cd /etc/systemd/system
 
     read -p "Which server do you want to use? (Enter '1' for Iran(internal-server) or '2' for Kharej(external-server): " server_choice
     if [ "$server_choice" == "2" ]; then
-        read -p "Please Enter IP(IRAN) : " server_ip
-        read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
-
-        if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
-            echo "This Tunnel is already installed."
-            exit 1
-        fi
 
         read -p "Please Enter SNI (default : sheypoor.com): " sni
         sni=${sni:-sheypoor.com}
 
         read -p "Please Enter Password (Please choose the same password on both servers): " password
 
-        arguments="--kharej --iran-ip:$server_ip --iran-port:$server_port --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --keep-ufw --mux-width:2 --terminate:24"
+        read -p "Which method do you want to use? (Enter '1' for multi-port or '2' for one-port): " method_choice
+        if [ "$method_choice" == "1" ]; then
+            server_ip=$myip
+            server_port="multi_port"
+
+            arguments="--kharej --iran-ip:$server_ip --iran-port:443 --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --keep-ufw --mux-width:2 --terminate:24"
+
+        elif [ "$method_choice" == "2" ]; then
+            read -p "Please Enter IP(IRAN) : " server_ip
+            read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
+
+            if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
+                echo "This Tunnel is already installed."
+                exit 1
+            fi
+
+            arguments="--kharej --iran-ip:$server_ip --iran-port:$server_port --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --keep-ufw --mux-width:2 --terminate:24"
+        else
+            echo "Invalid choice. Please enter '1' or '2'."
+            exit 1
+        fi
     elif [ "$server_choice" == "1" ]; then
         read -p "Please Enter SNI (default : sheypoor.com): " sni
         sni=${sni:-sheypoor.com}
 
         read -p "Please Enter Password (Please choose the same password on both servers): " password
 
-        read -p "Which method do you want to use? (Enter '1' for multi-port or '2' for one-port: " method_choice
+        read -p "Which method do you want to use? (Enter '1' for multi-port or '2' for one-port): " method_choice
 
         if [ "$method_choice" == "1" ]; then
             server_ip=$myip
-            server_port="multi-port"
+            server_port="multi_port"
 
             if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
                 echo "This Tunnel is already installed. (If you want to connect this server to 2 or more servers, they must all be installed as one-port)"
@@ -167,7 +252,7 @@ EOL
     echo "This Tunnel with name (Tunnel-reverse-$server_ip-$server_port) was successfully installed"
 }
 
-uninstall_reverse() {
+remove_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
     read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
@@ -181,6 +266,27 @@ uninstall_reverse() {
 
     sudo rm /etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service
     sudo systemctl reset-failed
+}
+
+uninstall_reverse() {
+    echo "Uninstalling..."
+
+    files=$(ls -1A /etc/systemd/system/Tunnel-reverse-* 2>/dev/null)
+
+    if [ ! -z "$files" ]; then
+        for file in $files; do
+            server_ip=$(echo $file | cut -d'-' -f3)
+            server_port=$(echo $file | cut -d'-' -f4 | sed 's/\.service//')
+
+            sudo systemctl stop Tunnel-reverse-$server_ip-$server_port.service
+            sudo systemctl disable Tunnel-reverse-$server_ip-$server_port.service
+
+            sudo rm /etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service
+        done
+    fi
+
+    sudo systemctl reset-failed
+
     sudo rm RTT
     sudo rm install.sh 2>/dev/null
 
@@ -230,27 +336,49 @@ check_tunnel_status_reverse() {
     else
         echo -e "${yellow}Tunnel is:${red}[Not running ✗ ]${rest}"
     fi
+
+    files=$(ls -1A /etc/systemd/system/Tunnel-reverse-* 2>/dev/null)
+
+    if [ ! -z "$files" ]; then
+        for file in $files; do
+            server_ip=$(echo $file | cut -d'-' -f3)
+            server_port=$(echo $file | cut -d'-' -f4 | sed 's/\.service//')
+
+            echo -e "${yellow}IP: ${server_ip} | PORT: ${server_port}: ${green}[✔]${rest}"
+        done
+    else
+        echo -e "${yellow}No tunnel found: ${red}[✗]${rest}"
+    fi
 }
 
-uninstall_reverse_multiport() {
-    if [ ! -f "/etc/systemd/system/Tunnel-reverse-$myip-multi-port.service" ]; then
-        echo "IRAN Multiport tunnel is not installed."
-        return
+remove_reverse_multiport() {
+
+    files=$(ls -1A /etc/systemd/system/Tunnel-reverse-* 2>/dev/null)
+
+    if [ ! -z "$files" ]; then
+        for file in $files; do
+            if [ "$port" = "multi_port" ]; then
+                continue
+            fi
+
+            server_ip=$(echo $file | cut -d'-' -f3)
+            server_port=$(echo $file | cut -d'-' -f4 | sed 's/\.service//')
+
+            sudo systemctl stop Tunnel-reverse-$server_ip-$server_port.service
+            sudo systemctl disable Tunnel-reverse-$server_ip-$server_port.service
+
+            sudo rm /etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service
+            sudo systemctl reset-failed
+
+            echo "Uninstallation completed successfully."
+            exit 1
+        done
     fi
 
-    sudo systemctl stop Tunnel-reverse-$myip-multi-port.service
-    sudo systemctl disable Tunnel-reverse-$myip-multi-port.service
-
-    sudo rm /etc/systemd/system/Tunnel-reverse-$myip-multi-port.service
-    sudo systemctl reset-failed
-    sudo rm RTT
-    sudo rm install.sh 2>/dev/null
-
-    echo "Uninstallation completed successfully."
+    echo "Multi-Port is not installed."
 }
 
 install_gost() {
-    root_access
     sysctl net.ipv4.ip_local_port_range="1024 65535"
 
     options=($'\e[36m1. \e[0mGost Tunnel By IP4'
@@ -498,28 +626,40 @@ auto_restart_gost() {
     esac
 }
 
+enable_bbr
 clear
+
+echo "
+\$\$\      \$\$\ \$\$\$\$\$\$\$\        \$\$\$\$\$\$\$\$\                                      \$\$\ 
+\$\$\$\    \$\$\$ |\$\$  __\$\$\       \__\$\$  __|                                     \$\$ |
+\$\$\$\$\  \$\$\$\$ |\$\$ |  \$\$ |         \$\$ |\$\$\   \$\$\ \$\$\$\$\$\$\$\  \$\$\$\$\$\$\$\   \$\$\$\$\$\$\  \$\$ |
+\$\$\\$\$\\$\$ \$\$ |\$\$\$\$\$\$\$  |         \$\$ |\$\$ |  \$\$ |\$\$  __\$\$\ \$\$  __\$\$\ \$\$  __\$\$\ \$\$ |
+\$\$ \\$\$\$  \$\$ |\$\$  __\$\$<          \$\$ |\$\$ |  \$\$ |\$\$ |  \$\$ |\$\$ |  \$\$ |\$\$\$\$\$\$\$\$ |\$\$ |
+\$\$ |\\$  /\$\$ |\$\$ |  \$\$ |         \$\$ |\$\$ |  \$\$ |\$\$ |  \$\$ |\$\$ |  \$\$ |\$\$   ____|\$\$ |
+\$\$ | \_/ \$\$ |\$\$ |  \$\$ |         \$\$ |\\$\$\$\$\$\$  |\$\$ |  \$\$ |\$\$ |  \$\$ |\\$\$\$\$\$\$\$\ \$\$ |
+\__|     \__|\__|  \__|         \__| \______/ \__|  \__|\__|  \__| \_______|\__|     
+                                                                                
+                                                                                
+                                                                                                                                                                                                                         
+"
 echo -e "${cyan}By --> NotMR_GH * Github.com/NotMRGH * ${rest}"
 echo -e "Your IP is: ${cyan}($myip)${rest} "
-if sudo systemctl is-active --quiet Tunnel-reverse-$myip-multi-port.service; then
-    echo -e "${yellow}IRAN Multiport is: ${green}[running ✔]${rest}"
-else
-    echo -e "${yellow}IRAN Multiport is:${red}[Not running ✗ ]${rest}"
-fi
 echo -e "${yellow}******************************${rest}"
 echo -e " ${purple}--------#- Reverse Tls Tunnel -#--------${rest}"
 echo -e "${green}1) Install${rest}"
-echo -e "${red}2) Uninstall multiport${rest}"
-echo -e "${red}3) Uninstall${rest}"
+echo -e "${red}2) Remove multiport${rest}"
+echo -e "${red}3) Uninstall All${rest}"
 echo -e "${green}4) Start${rest}"
 echo -e "${red}5) Stop${rest}"
 echo -e "${yellow}6) Check Status${rest}"
+echo -e "${green}7) Add Tunnel${rest}"
+echo -e "${red}8) Remove Tunnel${rest}"
 echo -e " ${purple}--------#- Gost Tunnel -#--------${rest}"
-echo -e "${green}7) Install${rest}"
-echo -e "${red}8) Uninstall${rest}"
-echo -e "${yellow}9) Check Status${rest}"
-echo -e "${green}10) Add New IP${rest}"
-echo -e "${yellow}11) Auto Restart Gost${rest}"
+echo -e "${green}9) Install${rest}"
+echo -e "${red}10) Uninstall${rest}"
+echo -e "${yellow}11) Check Status${rest}"
+echo -e "${green}12) Add New IP${rest}"
+echo -e "${yellow}13) Auto Restart Gost${rest}"
 echo -e "${red}0) Exit${rest}"
 read -p "Please choose: " choice
 
@@ -528,7 +668,7 @@ case $choice in
     install_reverse
     ;;
 2)
-    uninstall_reverse_multiport
+    remove_reverse_multiport
     ;;
 3)
     uninstall_reverse
@@ -543,18 +683,24 @@ case $choice in
     check_tunnel_status_reverse
     ;;
 7)
-    install_gost
+    add_reverse
     ;;
 8)
-    uninstall_gost
+    remove_reverse
     ;;
 9)
-    check_status_gost
+    install_gost
     ;;
 10)
-    add_new_ip_gost
+    uninstall_gost
     ;;
 11)
+    check_status_gost
+    ;;
+12)
+    add_new_ip_gost
+    ;;
+13)
     auto_restart_gost
     ;;
 0)
