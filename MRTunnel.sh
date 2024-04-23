@@ -135,6 +135,7 @@ install_rtt() {
 install_reverse() {
     check_dependencies_reverse
     install_rtt
+    enable_bbr
 
     files=$(ls -1A /etc/systemd/system/Tunnel-reverse-* 2>/dev/null)
 
@@ -379,6 +380,7 @@ remove_reverse_multiport() {
 }
 
 install_gost() {
+    enable_bbr
     sysctl net.ipv4.ip_local_port_range="1024 65535"
 
     options=($'\e[36m1. \e[0mGost Tunnel By IP4'
@@ -626,7 +628,6 @@ auto_restart_gost() {
     esac
 }
 
-enable_bbr
 clear
 
 echo "
