@@ -415,11 +415,13 @@ install_gost() {
         exit
     fi
 
-    read -p $'\e[32mSelect the protocol:\n\e[0m\e[36m1. \e[0mBy Tcp Protocol \n\e[36m2. \e[0mBy Grpc Protocol \e[32m\nYour choice: \e[0m' protocol_option
+    read -p $'\e[32mSelect the protocol:\n\e[0m\e[36m1. \e[0mBy "Tcp" Protocol \n\e[36m2. \e[0mBy "Udp" Protocol \n\e[36m3. \e[0mBy "Grpc" Protocol \e[32m\nYour choice: \e[0m' protocol_option
 
     if [ "$protocol_option" -eq 1 ]; then
         protocol="tcp"
     elif [ "$protocol_option" -eq 2 ]; then
+        protocol="udp"
+    elif [ "$protocol_option" -eq 3 ]; then
         protocol="grpc"
     else
         echo $'\e[31mInvalid protocol option. Exiting...\e[0m'
@@ -456,6 +458,7 @@ Wants=network.target
 
 [Service]
 Type=simple
+Environment="GOST_LOGGER_LEVEL=fatal"
 EOL
 
         exec_start_command="ExecStart=/usr/local/bin/gost"
@@ -472,9 +475,10 @@ EOL
 WantedBy=multi-user.target
 EOL
 
-        sudo systemctl daemon-reload
         sudo systemctl enable "gost_$file_index.service"
         sudo systemctl start "gost_$file_index.service"
+        sudo systemctl daemon-reload
+        sudo systemctl restart "gost_$file_index.service"
     done
 
     echo $'\e[32mGost configuration applied successfully.\e[0m'
@@ -528,11 +532,13 @@ check_status_gost() {
 add_new_ip_gost() {
     read -p $'\e[97mPlease enter the new destination (Kharej) IP 4 or 6: \e[0m' destination_ip
     read -p $'\e[36mPlease enter the new port (separated by commas): \e[0m' port
-    read -p $'\e[32mSelect the protocol:\n\e[0m\e[36m1. \e[0mBy Tcp Protocol \n\e[36m2. \e[0mBy Grpc Protocol \e[32m\nYour choice: \e[0m' protocol_option
+    read -p $'\e[32mSelect the protocol:\n\e[0m\e[36m1. \e[0mBy "Tcp" Protocol \n\e[36m2. \e[0mBy "Udp" Protocol \n\e[36m3. \e[0mBy "Grpc" Protocol \e[32m\nYour choice: \e[0m' protocol_option
 
     if [ "$protocol_option" -eq 1 ]; then
         protocol="tcp"
     elif [ "$protocol_option" -eq 2 ]; then
+        protocol="udp"
+    elif [ "$protocol_option" -eq 3 ]; then
         protocol="grpc"
     else
         echo $'\e[31mInvalid protocol option. Exiting...\e[0m'
