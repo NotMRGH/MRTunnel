@@ -152,17 +152,6 @@ add_reverse() {
 
     files=$(ls -1A /etc/systemd/system/Tunnel-reverse-* 2>/dev/null)
 
-    if [ ! -z "$files" ]; then
-        for file in $files; do
-            port=$(echo $file | cut -d'-' -f4 | sed 's/\.service//')
-
-            if [ "$port" = "multi_port" ]; then
-                echo "Multi-Port are installed before use add tunnel uninstall multi-port."
-                exit 1
-            fi
-        done
-    fi
-
     cd /etc/systemd/system
 
     read -p "Which server do you want to use? (Enter '1' for Iran(internal-server) or '2' for Kharej(external-server): " server_choice
@@ -172,62 +161,30 @@ add_reverse() {
         sni=${sni:-sheypoor.com}
 
         read -p "Please Enter Password (Please choose the same password on both servers): " password
+        read -p "Please Enter IP(IRAN) : " server_ip
+        read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
-        read -p "Which method do you want to use? (Enter '1' for multi-port or '2' for one-port): " method_choice
-        if [ "$method_choice" == "1" ]; then
-            server_ip=$myip
-            server_port="multi_port"
-
-            arguments="--kharej --iran-ip:$server_ip --iran-port:443 --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --keep-ufw --mux-width:2 --terminate:24"
-
-        elif [ "$method_choice" == "2" ]; then
-            read -p "Please Enter IP(IRAN) : " server_ip
-            read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
-
-            if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
-                echo "This Tunnel is already installed."
-                exit 1
-            fi
-
-            arguments="--kharej --iran-ip:$server_ip --iran-port:$server_port --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --keep-ufw --mux-width:2 --terminate:24"
-        else
-            echo "Invalid choice. Please enter '1' or '2'."
+        if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
+            echo "This Tunnel is already installed."
             exit 1
         fi
+
+        arguments="--kharej --iran-ip:$server_ip --iran-port:$server_port --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --keep-ufw --mux-width:2 --terminate:24"
     elif [ "$server_choice" == "1" ]; then
         read -p "Please Enter SNI (default : sheypoor.com): " sni
         sni=${sni:-sheypoor.com}
 
         read -p "Please Enter Password (Please choose the same password on both servers): " password
+        read -p "Please Enter IP(Kharej) : " server_ip
+        read -p "Please Enter Port(for connection between IRAN and Kharej (config port)) : " server_port
 
-        read -p "Which method do you want to use? (Enter '1' for multi-port or '2' for one-port): " method_choice
-
-        if [ "$method_choice" == "1" ]; then
-            server_ip=$myip
-            server_port="multi_port"
-
-            if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
-                echo "This Tunnel is already installed. (If you want to connect this server to 2 or more servers, they must all be installed as one-port)"
-                exit 1
-            fi
-
-            arguments="--iran --lport:23-65535 --sni:$sni --password:$password --keep-ufw --mux-width:2 --terminate:24"
-
-        elif [ "$method_choice" == "2" ]; then
-            read -p "Please Enter IP(Kharej) : " server_ip
-            read -p "Please Enter Port(for connection between IRAN and Kharej (config port)) : " server_port
-
-            if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
-                echo "This Tunnel is already installed."
-                exit 1
-            fi
-
-            arguments="--iran --lport:$server_port --sni:$sni --password:$password --keep-ufw --mux-width:2 --terminate:24"
-
-        else
-            echo "Invalid choice. Please enter '1' or '2'."
+        if [ -f "/etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service" ]; then
+            echo "This Tunnel is already installed."
             exit 1
         fi
+
+        arguments="--iran --lport:$server_port --sni:$sni --password:$password --keep-ufw --mux-width:2 --terminate:24"
+
     else
         echo "Invalid choice. Please enter '1' or '2'."
         exit 1
@@ -303,7 +260,7 @@ uninstall_reverse() {
 
 start_tunnel_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
-    read -p "Please Enter Port(for connection between IRAN and Kharej, if you are using multi-port write \"multi_port\") : " server_port
+    read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
     if sudo systemctl is-enabled --quiet Tunnel-reverse-$server_ip-$server_port.service; then
         sudo systemctl start Tunnel-reverse-$server_ip-$server_port.service >/dev/null 2>&1
@@ -320,7 +277,7 @@ start_tunnel_reverse() {
 
 stop_tunnel_reverse() {
     read -p "Please Enter IP(Kharej or IRAN) : " server_ip
-    read -p "Please Enter Port(for connection between IRAN and Kharej, if you are using multi-port write \"multi_port\") : " server_port
+    read -p "Please Enter Port(for connection between IRAN and Kharej) : " server_port
 
     if sudo systemctl is-enabled --quiet Tunnel-reverse-$server_ip-$server_port.service; then
         sudo systemctl stop Tunnel-reverse-$server_ip-$server_port.service >/dev/null 2>&1
@@ -349,33 +306,6 @@ check_tunnel_status_reverse() {
     else
         echo -e "${yellow}No tunnel found: ${red}[✗]${rest}"
     fi
-}
-
-remove_reverse_multiport() {
-
-    files=$(ls -1A /etc/systemd/system/Tunnel-reverse-* 2>/dev/null)
-
-    if [ ! -z "$files" ]; then
-        for file in $files; do
-            if [ "$port" = "multi_port" ]; then
-                continue
-            fi
-
-            server_ip=$(echo $file | cut -d'-' -f3)
-            server_port=$(echo $file | cut -d'-' -f4 | sed 's/\.service//')
-
-            sudo systemctl stop Tunnel-reverse-$server_ip-$server_port.service
-            sudo systemctl disable Tunnel-reverse-$server_ip-$server_port.service
-
-            sudo rm /etc/systemd/system/Tunnel-reverse-$server_ip-$server_port.service
-            sudo systemctl reset-failed
-
-            echo "Uninstallation completed successfully."
-            exit 1
-        done
-    fi
-
-    echo "Multi-Port is not installed."
 }
 
 install_gost() {
@@ -680,19 +610,18 @@ echo -e "Your IP is: ${cyan}($myip)${rest} "
 echo -e "${yellow}******************************${rest}"
 echo -e " ${purple}--------#- Reverse Tls Tunnel -#--------${rest}"
 echo -e "${green}1) Install${rest}"
-echo -e "${red}2) Remove multiport${rest}"
-echo -e "${red}3) Uninstall All${rest}"
-echo -e "${green}4) Start${rest}"
-echo -e "${red}5) Stop${rest}"
-echo -e "${yellow}6) Check Status${rest}"
-echo -e "${green}7) Add Tunnel${rest}"
-echo -e "${red}8) Remove Tunnel${rest}"
+echo -e "${red}2) Uninstall All${rest}"
+echo -e "${green}3) Start${rest}"
+echo -e "${red}4) Stop${rest}"
+echo -e "${yellow}5) Check Status${rest}"
+echo -e "${green}6) Add Tunnel${rest}"
+echo -e "${red}7) Remove Tunnel${rest}"
 echo -e " ${purple}--------#- Gost Tunnel -#--------${rest}"
-echo -e "${green}9) Install${rest}"
-echo -e "${red}10) Uninstall${rest}"
-echo -e "${yellow}11) Check Status${rest}"
-echo -e "${green}12) Add New IP${rest}"
-echo -e "${yellow}13) Auto Restart Gost${rest}"
+echo -e "${green}8) Install${rest}"
+echo -e "${red}9) Uninstall${rest}"
+echo -e "${yellow}10) Check Status${rest}"
+echo -e "${green}11) Add New IP${rest}"
+echo -e "${yellow}12) Auto Restart Gost${rest}"
 echo -e "${red}0) Exit${rest}"
 read -p "Please choose: " choice
 
@@ -701,39 +630,36 @@ case $choice in
     install_reverse
     ;;
 2)
-    remove_reverse_multiport
-    ;;
-3)
     uninstall_reverse
     ;;
-4)
+3)
     start_tunnel_reverse
     ;;
-5)
+4)
     stop_tunnel_reverse
     ;;
-6)
+5)
     check_tunnel_status_reverse
     ;;
-7)
+6)
     add_reverse
     ;;
-8)
+7)
     remove_reverse
     ;;
-9)
+8)
     install_gost
     ;;
-10)
+9)
     uninstall_gost
     ;;
-11)
+10)
     check_status_gost
     ;;
-12)
+11)
     add_new_ip_gost
     ;;
-13)
+12)
     auto_restart_gost
     ;;
 0)
