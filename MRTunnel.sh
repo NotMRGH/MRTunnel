@@ -835,9 +835,7 @@ status_test() {
         virt="Dedicated"
     fi
     clear
-    echo "-------------------- A Bench.sh Script By Teddysun -------------------"
-    echo " Version            : $(_green v2023-10-15)"
-    echo " Usage              : $(_red "wget -qO- bench.sh | bash")"
+    echo "-------------------- MRTunnel -------------------"
     next
     if [ -n "$cname" ]; then
         echo " CPU Model          : $(_blue "$cname")"
