@@ -1037,10 +1037,6 @@ add_6to4() {
     fi
 }
 
-remove_6to4() {
-
-}
-
 clear
 
 echo "
@@ -1122,7 +1118,7 @@ case $choice in
     add_6to4
     ;;
 14)
-    remove_6to4
+    status_test
     ;;
 15)
     status_test
