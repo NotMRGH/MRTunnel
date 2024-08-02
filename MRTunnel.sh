@@ -979,7 +979,7 @@ add_6to4() {
     read -p "Which server do you want to use? (Enter '1' for Iran(internal-server) or '2' for Kharej(external-server): " server_choice
     if [ "$server_choice" == "1" ]; then
         read -p "Please Enter IPv4 IRAN : " ip_iran
-        read -p "Please Enter IPv4 KHAREJ " ip_kharej
+        read -p "Please Enter IPv4 KHAREJ : " ip_kharej
 
         read -p "Please Enter Local IPv4 IRAN : " ip_local_iran_v4
         read -p "Please Enter Local IPv4 KHAREJ : " ip_local_kharej_v4
@@ -1011,7 +1011,7 @@ add_6to4() {
     elif [ "$server_choice" == "2" ]; then
 
         read -p "Please Enter IPv4 IRAN : " ip_iran
-        read -p "Please Enter IPv4 KHAREJ " ip_kharej
+        read -p "Please Enter IPv4 KHAREJ : " ip_kharej
 
         read -p "Please Enter Local IPv4 KHAREJ : " ip_local_kharej_v4
 
