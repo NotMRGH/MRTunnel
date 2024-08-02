@@ -987,19 +987,20 @@ add_6to4() {
         read -p "Please Enter Local IPv6 IRAN : " ip_local_iran_v6
         read -p "Please Enter Local IPv6 KHAREJ : " ip_local_kharej_v6
 
+        read -p "Please Enter Tunnel Name : " tunnel_name
         read -p "Please Enter Tunnel Port : " tunnel_port
 
         # Create tunnels
-        ip tunnel add $ip_kharej-$tunnel_port-1 mode sit remote $ip_kharej local $ip_iran
-        ip -6 addr add $ip_local_iran_v6/64 dev $ip_kharej-$tunnel_port-1
-        ip link set $ip_kharej-$tunnel_port-1 mtu 1480
-        ip link set $ip_kharej-$tunnel_port-1 up
+        ip tunnel add ${tunnel_name}1 mode sit remote $ip_kharej local $ip_iran
+        ip -6 addr add $ip_local_iran_v6/64 dev ${tunnel_name}1
+        ip link set ${tunnel_name}1 mtu 1480
+        ip link set ${tunnel_name}1 up
 
         # Configure NAT rules
-        ip -6 tunnel add $ip_kharej-$tunnel_port-2 mode ipip6 remote $ip_local_kharej_v6 local $ip_local_iran_v6
-        ip addr add $ip_local_iran_v4/30 dev $ip_kharej-$tunnel_port-2
-        ip link set $ip_kharej-$tunnel_port-2 mtu 1440
-        ip link set $ip_kharej-$tunnel_port-2 up
+        ip -6 tunnel add ${tunnel_name}2 mode ipip6 remote $ip_local_kharej_v6 local $ip_local_iran_v6
+        ip addr add $ip_local_iran_v4/30 dev ${tunnel_name}2
+        ip link set ${tunnel_name}2 mtu 1440
+        ip link set ${tunnel_name}2 up
 
         # Configure iptables
         sysctl net.ipv4.ip_forward=1
@@ -1017,19 +1018,19 @@ add_6to4() {
         read -p "Please Enter Local IPv6 IRAN : " ip_local_iran_v6
         read -p "Please Enter Local IPv6 KHAREJ : " ip_local_kharej_v6
 
-        read -p "Please Enter Tunnel Port : " tunnel_port
+        read -p "Please Enter Tunnel Name : " tunnel_name
 
         # Create tunnels
-        ip tunnel add $ip_iran-$tunnel_port-1 mode sit remote $ip_iran local $ip_kharej
-        ip -6 addr add $ip_local_kharej_v6/64 dev $ip_iran-$tunnel_port-1
-        ip link set $ip_iran-$tunnel_port-1 mtu 1480
-        ip link set $ip_iran-$tunnel_port-1 up
+        ip tunnel add ${tunnel_name}1 mode sit remote $ip_iran local $ip_kharej
+        ip -6 addr add $ip_local_kharej_v6/64 dev ${tunnel_name}1
+        ip link set ${tunnel_name}1 mtu 1480
+        ip link set ${tunnel_name}1 up
 
         # Configure NAT rules
-        ip -6 tunnel add $ip_iran-$tunnel_port-2 mode ipip6 remote $ip_local_iran_v6 local $ip_local_kharej_v6
-        ip addr add $ip_local_kharej_v4/30 dev $ip_iran-$tunnel_port-2
-        ip link set $ip_iran-$tunnel_port-2 mtu 1440
-        ip link set $ip_iran-$tunnel_port-2 up
+        ip -6 tunnel add ${tunnel_name}2 mode ipip6 remote $ip_local_iran_v6 local $ip_local_kharej_v6
+        ip addr add $ip_local_kharej_v4/30 dev ${tunnel_name}2
+        ip link set ${tunnel_name}2 mtu 1440
+        ip link set ${tunnel_name}2 up
 
     else
         echo "Invalid choice. Please enter '1' or '2'."
