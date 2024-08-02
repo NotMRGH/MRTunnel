@@ -590,10 +590,6 @@ auto_restart_gost() {
     esac
 }
 
-bbr() {
-    wget -N --no-check-certificate "https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/tcp.sh" && chmod +x tcp.sh && ./tcp.sh
-}
-
 trap _exit INT QUIT TERM
 
 _red() {
@@ -979,6 +975,72 @@ status_test() {
     next
 }
 
+add_6to4() {
+    read -p "Which server do you want to use? (Enter '1' for Iran(internal-server) or '2' for Kharej(external-server): " server_choice
+    if [ "$server_choice" == "1" ]; then
+        read -p "Please Enter IPv4 IRAN : " ip_iran
+        read -p "Please Enter IPv4 KHAREJ " ip_kharej
+
+        read -p "Please Enter Local IPv4 IRAN : " ip_local_iran_v4
+        read -p "Please Enter Local IPv4 KHAREJ : " ip_local_kharej_v4
+
+        read -p "Please Enter Local IPv6 IRAN : " ip_local_iran_v6
+        read -p "Please Enter Local IPv6 KHAREJ : " ip_local_kharej_v6
+
+        read -p "Please Enter Tunnel Port : " tunnel_port
+
+        # Create tunnels
+        ip tunnel add $ip_kharej-$tunnel_port-1 mode sit remote $ip_kharej local $ip_iran
+        ip -6 addr add $ip_local_iran_v6/64 dev $ip_kharej-$tunnel_port-1
+        ip link set $ip_kharej-$tunnel_port-1 mtu 1480
+        ip link set $ip_kharej-$tunnel_port-1 up
+
+        # Configure NAT rules
+        ip -6 tunnel add $ip_kharej-$tunnel_port-2 mode ipip6 remote $ip_local_kharej_v6 local $ip_local_iran_v6
+        ip addr add $ip_local_iran_v4/30 dev $ip_kharej-$tunnel_port-2
+        ip link set $ip_kharej-$tunnel_port-2 mtu 1440
+        ip link set $ip_kharej-$tunnel_port-2 up
+
+        # Configure iptables
+        sysctl net.ipv4.ip_forward=1
+        iptables -t nat -A PREROUTING -p tcp --dport $tunnel_port -j DNAT --to-destination $ip_local_iran_v4
+        iptables -t nat -A PREROUTING -j DNAT --to-destination $ip_local_kharej_v4
+        iptables -t nat -A POSTROUTING -j MASQUERADE
+
+    elif [ "$server_choice" == "2" ]; then
+
+        read -p "Please Enter IPv4 IRAN : " ip_iran
+        read -p "Please Enter IPv4 KHAREJ " ip_kharej
+
+        read -p "Please Enter Local IPv4 KHAREJ : " ip_local_kharej_v4
+
+        read -p "Please Enter Local IPv6 IRAN : " ip_local_iran_v6
+        read -p "Please Enter Local IPv6 KHAREJ : " ip_local_kharej_v6
+
+        read -p "Please Enter Tunnel Port : " tunnel_port
+
+        # Create tunnels
+        ip tunnel add $ip_iran-$tunnel_port-1 mode sit remote $ip_iran local $ip_kharej
+        ip -6 addr add $ip_local_kharej_v6/64 dev $ip_iran-$tunnel_port-1
+        ip link set $ip_iran-$tunnel_port-1 mtu 1480
+        ip link set $ip_iran-$tunnel_port-1 up
+
+        # Configure NAT rules
+        ip -6 tunnel add $ip_iran-$tunnel_port-2 mode ipip6 remote $ip_local_iran_v6 local $ip_local_kharej_v6
+        ip addr add $ip_local_kharej_v4/30 dev $ip_iran-$tunnel_port-2
+        ip link set $ip_iran-$tunnel_port-2 mtu 1440
+        ip link set $ip_iran-$tunnel_port-2 up
+
+    else
+        echo "Invalid choice. Please enter '1' or '2'."
+        exit 1
+    fi
+}
+
+remove_6to4() {
+
+}
+
 clear
 
 echo "
@@ -1011,9 +1073,11 @@ echo -e "${red}9) Uninstall${rest}"
 echo -e "${yellow}10) Check Status${rest}"
 echo -e "${green}11) Add New IP${rest}"
 echo -e "${yellow}12) Auto Restart Gost${rest}"
+echo -e " ${purple}--------#- 6to4 Tunnel -#--------${rest}"
+echo -e "${green}13) Add Tunnel${rest}"
+echo -e "${red}14) Remove Tunnel${rest}"
 echo -e " ${purple}--------#- Optimizer -#--------${rest}"
-echo -e "${green}13) BBR${rest}"
-echo -e "${green}14) Status${rest}"
+echo -e "${green}15) Status${rest}"
 echo -e "${red}0) Exit${rest}"
 read -p "Please choose: " choice
 
@@ -1055,9 +1119,12 @@ case $choice in
     auto_restart_gost
     ;;
 13)
-    bbr
+    add_6to4
     ;;
 14)
+    remove_6to4
+    ;;
+15)
     status_test
     ;;
 0)
